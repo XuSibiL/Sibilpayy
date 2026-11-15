@@ -22,6 +22,7 @@
 | ۴ | [وب‌هوک](04-webhooks.md) | ۵ دقیقه |
 | ۵ | نمونه‌کد: [ربات تلگرام](05-telegram-bot.md) یا [سایت](06-website-examples.md) | ۱۰ دقیقه |
 | ۶ | [امنیت](07-security.md) و [کدهای خطا](08-errors.md) | قبل از انتشار |
+| ۷ | [تلاشِ ناموفق، نتیجهٔ نامشخص و idempotency](10-retries-and-idempotency.md) | **ضروری قبل از انتشار** |
 
 ---
 

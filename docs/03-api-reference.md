@@ -27,6 +27,19 @@ Authorization: Bearer sibil_pay_live_XXXXXXXX
 
 **مسیرِ پایه:** `/api/v1`
 
+**`order_id` = idempotency:** اگر `order_id` بفرستی و برای همان فروشگاه فاکتورِ
+باز/پرداخت‌شده‌ای با همان `order_id` وجود داشته باشد، فاکتورِ تکراری ساخته
+نمی‌شود؛ همان فاکتور با `200` و `"idempotent_replay": true` برمی‌گردد.
+جزئیات: [۱۰ — تلاشِ ناموفق و idempotency](10-retries-and-idempotency.md)
+
+**بازیابیِ نتیجهٔ نامشخص:**
+
+```http
+GET /api/v1/invoices/by-order/{order_id}
+```
+
+`200` = فاکتور هست · `404` = مطمئنی ساخته نشده و می‌توانی دوباره تلاش کنی.
+
 ---
 
 ## فهرستِ endpointها
