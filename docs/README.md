@@ -24,6 +24,7 @@
 | ۶ | [امنیت](07-security.md) و [کدهای خطا](08-errors.md) | قبل از انتشار |
 | ۷ | [تلاشِ ناموفق، نتیجهٔ نامشخص و idempotency](10-retries-and-idempotency.md) | **ضروری قبل از انتشار** |
 | ۸ | [اتصال از هر زبان، هر سایت، هر ربات](11-integrations.md) | PHP، ووکامرس، Node.js، Python، Kotlin/Java، C#، Go، Ruby |
+| ۹ | [چند فاکتور هم‌زمان و دامِ «صفِ تک‌فاکتوری»](12-concurrent-invoices.md) | هر کسی که ده‌ها خریدارِ هم‌زمان دارد |
 
 ---
 
@@ -68,5 +69,6 @@
 - [۰۹ — سؤال‌های پرتکرار](09-faq.md)
 - [۱۰ — تلاشِ ناموفق، نتیجهٔ نامشخص و idempotency](10-retries-and-idempotency.md)
 - [۱۱ — اتصال از هر زبان، هر سایت، هر ربات](11-integrations.md)
+- [۱۲ — چند فاکتور هم‌زمان و دامِ «صفِ تک‌فاکتوری»](12-concurrent-invoices.md)
 
 </div>
