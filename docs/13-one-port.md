@@ -65,10 +65,13 @@ STRICT_ONE_PORT=false
 ## ۴) پیکربندیِ درست، در سه خط
 
 ```env
-BASE_URL=https://pay.example.com:2053
-PAYMENT_BASE_URL=https://pay.example.com:2053
+BASE_URL=https://pay.example.com
+PAYMENT_BASE_URL=https://pay.example.com
 MINI_BASE_URL=https://pay.example.com
 ```
+
+اگر پورتِ صریح می‌گذاری، پورت باید همان پورتی باشد که **مسیرِ `/api/v1/`** را
+واقعاً سرو می‌کند — نه پورتی که فقط صفحهٔ پرداخت را می‌شناسد.
 
 `MINI_BASE_URL` عمداً بدونِ پورت است (۴۴۳).
 
@@ -95,10 +98,61 @@ cd /opt/sibilpay && ./venv/bin/python -c "import sys;sys.path.insert(0,'backend'
 
 ---
 
-## ۶) چک‌لیست
+## ۶) اگر `302` گرفتی
+
+`302`/`301` با هدرِ `Location` یعنی درخواست **به API نرسیده** و یک لایهٔ دیگر
+(وب‌سرور یا پراکسی) آن را به پورتِ دیگر پرتاب کرده است.
+
+```bash
+curl -sS -o /dev/null -D - https://pay.example.com/api/v1/invoices/by-order/probe | head -5
+```
+
+```
+HTTP/2 302
+location: https://pay.example.com/api/v1/invoices/by-order/probe   ← یعنی ۴۴۳
+server: Caddy
+```
+
+مارکِ `server:` منبع را لو می‌دهد:
+
+| `server:` | یعنی پاسخ از کجاست |
+|---|---|
+| `Caddy` / `nginx` | پراکسی/وب‌سرور ریدایرکت می‌کند؛ کدِ برنامه دخیل نیست |
+| `uvicorn` | پاسخ از خودِ برنامهٔ SIBILPAY است |
+
+### دامِ `/health`
+
+`200` روی `/health` **سلامتِ مسیرِ API را ثابت نمی‌کند**. یک پراکسی می‌تواند فقط
+`/health` را به برنامه بفرستد و بقیهٔ مسیرها را ریدایرکت کند؛ نتیجه این می‌شود:
+
+```
+https://HOST:2053/health          → 200  (uvicorn)
+https://HOST:2053/api/v1/…        → 302  (Caddy → 443)
+```
+
+یعنی آن پورت «زنده» است ولی **API روی آن نیست**. آدرسِ درست همان پورتی است که
+`/api/v1/…` رویش JSON می‌دهد.
+
+### آزمونِ پذیرش
+
+| درخواست | پاسخِ درست | پاسخِ غلط |
+|---|---|---|
+| `/api/v1/invoices/by-order/probe` بدونِ کلید | `401` + JSON | `302` + `Location` |
+| همان مسیر با کلیدِ معتبر و `order_id` ناموجود | `404` + `INVOICE_NOT_FOUND` | `302` یا HTML |
+| همان مسیر با کلیدِ معتبر و فاکتورِ موجود | `200` + JSON فاکتور | `302` |
+
+هیچ کلاینتی نباید ریدایرکت را **خودکار دنبال** کند: با فعال‌بودنِ follow، یک
+`POST` ممکن است به `GET` تبدیل شود و فاکتور ساخته نشود — در حالی که گزارش می‌گوید
+«نتیجه نامشخص».
+
+
+---
+
+## ۷) چک‌لیست
 
 - [ ] `BASE_URL` و `PAYMENT_BASE_URL` پورتِ یکسان دارند.
-- [ ] `https://HOST:PORT/health` از بیرون `200` می‌دهد.
+- [ ] `https://HOST/api/v1/…` از بیرون JSON می‌دهد (`401` بدونِ کلید) — نه `302`.
+- [ ] `https://HOST/health` از بیرون `200` می‌دهد.
 - [ ] `MINI_BASE_URL` روی ۴۴۳ است و پورت ندارد.
 - [ ] در ربات، `/diag` می‌گوید «پورتِ درگاه: یکی ✔».
 - [ ] آدرسِ وب‌هوک/کال‌بکِ درگاه‌های دیگر (کارت، کریپتو) هم به همان پورت اشاره می‌کند.
