@@ -149,8 +149,11 @@ app.post("/sibilpay/callback",
     const expected = crypto.createHmac("sha256", SECRET)
       .update(`${ts}.`).update(req.body).digest("hex");
 
-    if (Math.abs(Date.now() / 1000 - ts) > 300 ||
-        !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1 || ""))) {
+    const got = Buffer.from(parts.v1 || "", "hex");
+    const ok  = got.length === expected.length &&
+                crypto.timingSafeEqual(got, Buffer.from(expected, "hex"));
+
+    if (Math.abs(Date.now() / 1000 - ts) > 300 || !ok) {
       return res.status(401).send("bad signature");
     }
 
