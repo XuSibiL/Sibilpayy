@@ -55,7 +55,8 @@ GET /api/v1/invoices/by-order/{order_id}
 | `POST` | `/invoices/{id}/verify` | تأیید و گرفتنِ رسید |
 | `POST` | `/invoices/{id}/confirm-deposit` | تأییدِ دستیِ واریزیِ دیررسیده |
 | `GET` | `/cards` · `POST /cards` · `PATCH /cards/{id}` | کارت‌ها |
-| `GET` | `/store` · `PATCH /store` | تنظیماتِ فروشگاه (از جمله `webhook_url`) |
+| `GET` | `/store` · `PATCH /store` | تنظیماتِ فروشگاه؛ **`webhook_url` همیشه در پاسخ هست (`null` = خالی)** |
+| `GET` | `/webhooks` · `/webhooks?invoice_id=…` | ارسال‌های وب‌هوک: `status`، `attempts`، `response_status`، `last_error`، `next_attempt_at` |
 | `POST` | `/webhook-test` | ارسالِ یک وب‌هوکِ نمونه |
 | `GET` | `/gateways` | مسیرهای پرداختِ فعال |
 | `GET` | `/devices` | گوشی‌های وصل‌شده |
