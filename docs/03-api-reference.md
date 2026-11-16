@@ -119,7 +119,9 @@ curl -X POST https://SERVER/api/v1/invoices \
     "paid_at": null,
     "verified_at": null,
     "test_mode": false,
-    "payment_url": "https://SERVER/pay/inv_9f2c1a7b3d",
+    "payment_url": "https://SERVER/pay/card/inv_9f2c1a7b3d",
+    "short_payment_url": "https://SERVER/pay/inv_9f2c1a7b3d",
+    "gateway_url": "https://SERVER/g/shop046806",
     "card": { "bank": "mellat", "last4": "5678", "holder": "علی رضایی" }
   },
   "error": null
@@ -239,7 +241,16 @@ curl -X POST https://SERVER/api/v1/invoices/inv_XXXX/confirm-deposit \
 
 ---
 
-## نکتهٔ `payment_url`
+## نکتهٔ `payment_url` و `gateway_url`
+
+دو چیزِ متفاوت، هر دو در پاسخِ فاکتور:
+
+| فیلد | معنی | برای چه کسی |
+|---|---|---|
+| `payment_url` | لینکِ **همین فاکتور** (`/pay/<gateway>/<id>`) | مشتری؛ ریدایرکت کن و تمام |
+| `short_payment_url` | همان لینک، بدونِ نامِ درگاه (`/pay/<id>`) | لینک‌های قدیمی/کوتاه |
+| `gateway_url` | **آدرسِ درگاهِ فروشگاه** (`/g/<slug>`) | در فیلدِ «آدرس درگاه» پنل‌های دیگر؛ نه لینکِ یک خریدِ خاص |
+
 
 `payment_url` و `short_payment_url` را **همان‌طور که می‌آید مصرف کن** و خودت از
 `SERVER` نساز. آدرسِ API و آدرسِ صفحهٔ پرداخت روی **یک پورت** هستند
