@@ -126,11 +126,24 @@ X-SIBILPAY-Delivery: whd_…
 
 ## ۴) بررسیِ امضا
 
+هدر `X-SIBILPAY-Signature` به شکلِ `t=<unix>,v1=<hex>` است و امضا روی
+`t + "." + raw_body` ساخته می‌شود، با secretِ **همان مقصدی** که پیام به آن می‌رود:
+
 ```python
-import hmac, hashlib
-expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-ok = hmac.compare_digest(expected, request.headers["X-SIBILPAY-Signature"])
+import hmac, hashlib, time
+
+def verify(raw_body: bytes, header: str, secret: str, tolerance: int = 300) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(","))   # t=...,v1=...
+    ts, signature = int(parts["t"]), parts["v1"]
+    if abs(time.time() - ts) > tolerance:                     # محافظت از بازپخش
+        return False
+    expected = hmac.new(secret.encode(), f"{ts}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
 ```
+
+`raw_body` بایت‌های خامِ بدنه است؛ اگر بدنه را دوباره `json.dumps` کنی امضا نمی‌خواند.
+نمونهٔ کاملِ ساختِ یک اتصالِ تازه (کلیدِ API به‌جای توکنِ ادمین) در
+[سندِ ۱۸](18-connect-a-bot.md).
 
 ## ۵) خطاهای رایج
 
@@ -160,7 +173,24 @@ ok = hmac.compare_digest(expected, request.headers["X-SIBILPAY-Signature"])
 - فروشگاه‌های دوم و سوم: دکمهٔ 🗑 → پیامِ هشدار → باید کلمهٔ **بله** را بنویسی.
 - اگر فاکتورِ بازی داشته باشد، حذف انجام نمی‌شود تا اول آن‌ها را لغو کنی.
 
-## ۸) «🔌 اتصالات» در ربات
+## ۸) اتصالِ خودکارِ یک بات (بدونِ توکنِ ادمین)
+
+اگر خودِ بات می‌خواهد مقصدش را ثبت کند، مسیرهای `X-Admin-Token` به کارش نمی‌آید.
+با کلیدِ API همین اتصال:
+
+```http
+GET  /api/v1/hooks/self
+PUT  /api/v1/hooks/self          {"url": "https://mirza.example/hook", "label": "mirza"}
+POST /api/v1/hooks/self/rotate   {"id": "ep1"}
+POST /api/v1/hooks/self/test     {"id": "ep1"}
+GET  /api/v1/hooks/self/deliveries
+```
+
+هر کلید فقط مقصدهای **خودش** را می‌بیند و می‌سازد؛ ثبتِ دوبارهٔ همان آدرس مقصدِ
+تکراری نمی‌سازد و secret را عوض نمی‌کند. جزئیاتِ کامل، خطاها و قراردادِ امضا:
+[سندِ ۱۸](18-connect-a-bot.md).
+
+## ۹) «🔌 اتصالات» در ربات
 
 در «⚙️ بیشتر» یک دکمهٔ **🔌 اتصالات** اضافه شده که همان سؤال را جواب می‌دهد:
 
