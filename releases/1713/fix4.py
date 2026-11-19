@@ -1,26 +1,27 @@
-import pathlib, re, subprocess, sys, tarfile, time
+import pathlib, subprocess, sys, tarfile, time
 
 APP = pathlib.Path(sys.argv[1])
 PY = sys.argv[2] if len(sys.argv) > 2 else sys.executable
 EXT = "." + "py"
-HOOKS = APP / "backend" / "app" / "services" / ("webhooks" + EXT)
-INV_OPEN = APP / "backend" / "app" / "services" / ("invoices_open" + EXT)
+BACK = APP / "backend" / "app"
+HOOKS = BACK / "services" / ("webhooks" + EXT)
+INV_OPEN = BACK / "services" / ("invoices_open" + EXT)
+ROUTER = BACK / "routers" / ("invoices" + EXT)
+SCHEMAS = BACK / ("schemas" + EXT)
 if not HOOKS.exists():
     raise SystemExit("فایل پیدا نشد: %s" % HOOKS)
 
 BACKUP = APP / ".sp1713-backup" / ("before-" + time.strftime("%Y%m%d-%H%M%S") + ".tar.gz")
 BACKUP.parent.mkdir(parents=True, exist_ok=True)
+FILES = [f for f in (HOOKS, INV_OPEN, ROUTER, SCHEMAS) if f.exists()]
 with tarfile.open(BACKUP, "w:gz") as tar:
-    for f in (HOOKS, INV_OPEN):
-        if f.exists():
-            tar.add(f, arcname=str(f.relative_to(APP)))
+    for f in FILES:
+        tar.add(f, arcname=str(f.relative_to(APP)))
 print("بکاپ: %s" % BACKUP)
 
 
 def compile_all() -> None:
-    for f in (HOOKS, INV_OPEN):
-        if not f.exists():
-            continue
+    for f in FILES:
         r = subprocess.run([PY, "-m", "py_compile", str(f)], capture_output=True, text=True)
         if r.returncode != 0:
             print("سینتکس خراب شد — برگشت")
@@ -33,7 +34,7 @@ def compile_all() -> None:
 
 HELPERS = '''# ---------------------------------------------------------------- MULTI-HOOK-V1
 async def _endpoint_rows(session, store_id: str) -> list:
-    """مقصدهای فعالِ همین فروشگاه: (id، آدرس، secret)."""
+    """مقصدهایی که در جدولِ اتصالاتِ همین فروشگاه ثبت شده‌اند: (id، آدرس، secret)."""
     from sqlalchemy import text
 
     try:
@@ -44,6 +45,43 @@ async def _endpoint_rows(session, store_id: str) -> list:
     except Exception:                                       # noqa: BLE001
         return []
     return [(str(r[0]), str(r[1]), str(r[2] or "")) for r in rows if r[1]]
+
+
+async def _invoice_callback(session, invoice) -> str:
+    """آدرسی که خودِ این فاکتور با خودش آورده است (``callback_url``)."""
+    if invoice is None:
+        return ""
+    url = getattr(invoice, "callback_url", None)
+    if url:
+        return str(url)
+    from sqlalchemy import text
+
+    try:
+        return str((await session.execute(
+            text('select coalesce(callback_url, \\'\\') from "invoices" where id = :i'),
+            {"i": invoice.id},
+        )).scalar() or "")
+    except Exception:                                       # noqa: BLE001
+        return ""
+
+
+async def _store_callbacks(session, store_id: str, limit: int = 3) -> list:
+    """دامنه‌هایی که تا حالا از همین فروشگاه فاکتور ساخته‌اند.
+
+    ثبتِ دستی لازم نیست: هر فاکتور آدرسِ خودش را با خودش می‌آورد، اینجا آن
+    آدرس‌ها به‌ترتیبِ تازگی نگه داشته می‌شوند تا فاکتورهای بعدی هم خبر بگیرند.
+    """
+    from sqlalchemy import text
+
+    try:
+        rows = (await session.execute(text(
+            'select callback_url, max(created_at) as last from "invoices" '
+            "where store_id = :s and coalesce(callback_url, '') <> '' "
+            "group by callback_url order by last desc limit :n"
+        ), {"s": store_id, "n": limit})).all()
+    except Exception:                                       # noqa: BLE001
+        return []
+    return [str(r[0]) for r in rows if r[0]]
 
 
 async def _bound_endpoint(session, invoice):
@@ -90,25 +128,38 @@ async def _endpoint_secret(session, endpoint_id) -> str:
 async def recipients(session, store, invoice=None) -> list:
     """آدرس‌هایی که این رویداد باید به آن‌ها برود، به‌ترتیبِ اولویت.
 
-    اول مقصدی که خودِ فاکتور را ساخته، بعد بقیهٔ مقصدهای همین فروشگاه (تا سه)،
-    و در آخر ``store.webhook_url`` اگر با هیچ‌کدام یکی نبود. قبلا رویدادِ «پرداخت
-    شد» فقط به ``webhook_url`` می‌رفت، پس رباتی که فاکتور را از دامنهٔ خودش ساخته
-    بود هیچ‌وقت خبر نمی‌گرفت.
+    اول آدرسی که همین فاکتور با خودش آورده، بعد دامنه‌های قبلیِ همین فروشگاه
+    (حداکثر سه)، بعد مقصدهای ثبت‌شده و در آخر ``store.webhook_url``. قبلا رویدادِ
+    «پرداخت شد» فقط به ``webhook_url`` می‌رفت، پس رباتی که فاکتور را از دامنهٔ
+    خودش ساخته بود هیچ‌وقت خبر نمی‌گرفت.
     """
     bound = await _bound_endpoint(session, invoice)
-    out = []
-    seen = set()
+    out, seen = [], set()
+
+    def add(url, endpoint_id=None):
+        url = (url or "").strip()
+        if not url or url in seen:
+            return
+        seen.add(url)
+        out.append((url, endpoint_id))
+
+    callbacks = []
+    own = await _invoice_callback(session, invoice)
+    if own:
+        callbacks.append(own)
+    for url in await _store_callbacks(session, getattr(store, "id", ""), limit=3):
+        if url not in callbacks:
+            callbacks.append(url)
+    for url in callbacks[:3]:
+        add(url)
+
     endpoints = await _endpoint_rows(session, store.id)
     endpoints.sort(key=lambda row: 0 if (bound and row[0] == str(bound)) else 1)
-    for eid, url, _secret in endpoints[:3]:
-        if url in seen:
-            continue
-        seen.add(url)
-        out.append((url, eid))
-    store_url = getattr(store, "webhook_url", None)
-    if store_url and store_url not in seen:
-        out.append((store_url, None))
-    return out
+    for eid, url, _secret in endpoints:
+        add(url, eid)
+
+    add(getattr(store, "webhook_url", None))
+    return out[:3]                      # سقفِ سه مقصد، همان قاعدهٔ فروشنده
 
 
 async def _ensure_delivery_endpoint_col(session) -> bool:
@@ -175,6 +226,38 @@ BODY = '''    """MULTI-HOOK-V1 — یک ردیفِ تحویل برای هر مق
     return first
 '''
 
+AUTO_HOOK = '''def _auto_hook_url(request) -> str | None:
+    """آدرسِ وبهوک از دلِ همان درخواستِ ساختِ فاکتور، بدون ثبتِ دستی.
+
+    ترتیب: هدرِ صریح (x-webhook-url / x-callback-url / webhook-url)، بعد
+    Origin یا Referer به‌همراهِ x-webhook-path. اگر هیچ‌کدام نبود، آدرس خالی
+    می‌ماند و بقیهٔ مقصدهای فروشگاه کار خودشان را می‌کنند.
+    """
+    if request is None:
+        return None
+    try:
+        headers = request.headers
+        for name in ("x-webhook-url", "x-callback-url", "webhook-url"):
+            value = (headers.get(name) or "").strip()
+            if value.startswith(("http://", "https://")):
+                return value[:400]
+        origin = (headers.get("origin") or "").strip()
+        if not origin:
+            referer = (headers.get("referer") or "").strip()
+            if referer.startswith(("http://", "https://")):
+                origin = "/".join(referer.split("/")[:3])
+        if origin.startswith(("http://", "https://")):
+            path = (headers.get("x-webhook-path") or "").strip()
+            if path and not path.startswith("/"):
+                path = "/" + path
+            return (origin.rstrip("/") + (path or "/"))[:400]
+    except Exception:                                       # noqa: BLE001
+        return None
+    return None
+
+
+'''
+
 src = HOOKS.read_text(encoding="utf-8")
 
 if "MULTI-HOOK-V1" in src:
@@ -185,7 +268,6 @@ else:
     if start is None:
         raise SystemExit("تابعِ enqueue پیدا نشد")
 
-    # انتهای امضای تابع: خطی که پرانتزها بسته می‌شود و با «:» تمام می‌شود
     depth, sig_end = 0, None
     for i in range(start, min(start + 40, len(lines))):
         line = lines[i]
@@ -197,7 +279,6 @@ else:
     if sig_end is None:
         raise SystemExit("امضای enqueue خوانده نشد")
 
-    # انتهای تابع: اولین خطِ بدونِ تورفتگی بعد از بدنه
     end = len(lines)
     for j in range(sig_end + 1, len(lines)):
         line = lines[j]
@@ -207,19 +288,15 @@ else:
             end = j
             break
 
-    print("  • بدنهٔ enqueue از خط %d تا %d جای‌گذاری می‌شود" % (sig_end + 2, end))
     lines[sig_end + 1:end] = BODY.split("\n")
     src = "\n".join(lines)
-
-    anchor = "async def enqueue"
-    src = src.replace(anchor, HELPERS + anchor, 1)
+    src = src.replace("async def enqueue", HELPERS + "async def enqueue", 1)
     HOOKS.write_text(src, encoding="utf-8")
-    print("  ✔ webhooks — مسیرِ چند مقصدی")
+    print("  ✔ webhooks — مسیرِ چند مقصدی (بدنهٔ enqueue جای‌گذاری شد)")
 
     # ------------------------------------------------------------ امضا در deliver_due
     src = HOOKS.read_text(encoding="utf-8")
-    hit = -1
-    scan = 0
+    hit, scan = -1, 0
     dd = src.find("async def deliver_due")
     while dd != -1:
         cand = src.find("signature_modes(", max(scan, dd))
@@ -299,6 +376,79 @@ if INV_OPEN.exists():
             INV_OPEN.write_text(src2, encoding="utf-8")
             print("  ✔ invoices_open — پیدا کردنِ مقصد با هر دو ستون")
         else:
-            print("  • الگوی _resolve_endpoint پیدا نشد — مقصد با ساختارِ فعلی می‌ماند")
+            print("  • الگوی _resolve_endpoint پیدا نشد — ساختارِ فعلی می‌ماند")
+
+# ---------------------------------------------------------------- خودکار: آدرس از درخواست
+if ROUTER.exists():
+    src3 = ROUTER.read_text(encoding="utf-8")
+    if "MULTI-HOOK-V1" in src3:
+        print("  • روترِ فاکتور — از قبل درست است")
+    else:
+        if "from fastapi import" in src3 and "Request" not in src3.split("from fastapi import")[1].split("\n")[0]:
+            line = [l for l in src3.split("\n") if l.startswith("from fastapi import")][0]
+            src3 = src3.replace(line, line.replace("import ", "import Request, ", 1) + "  # MULTI-HOOK-V1", 1)
+
+        anchor = '@router.post("/invoices", status_code=201)'
+        if anchor not in src3:
+            raise SystemExit("مسیرِ ساختِ فاکتور پیدا نشد")
+        src3 = src3.replace(anchor, AUTO_HOOK + anchor, 1)
+
+        old_sig = ("async def create_invoice(\n"
+                   "    payload: InvoiceCreate,\n")
+        new_sig = ("async def create_invoice(\n"
+                   "    payload: InvoiceCreate,\n"
+                   "    request: Request,\n")
+        if old_sig not in src3:
+            raise SystemExit("امضای create_invoice پیدا نشد")
+        src3 = src3.replace(old_sig, new_sig, 1)
+
+        marker = "    # ── idempotency: با یک order_id همیشه همان فاکتور برمی‌گردد"
+        if marker not in src3:
+            raise SystemExit("بلوکِ idempotency پیدا نشد")
+        inject = ("    # MULTI-HOOK-V1 — مقصدِ خبرِ این فاکتور از همان درخواست خوانده\n"
+                  "    # می‌شود؛ نه پنلِ ثبتِ دستی، نه آدرسِ ثابتِ فروشگاه.\n"
+                  "    try:\n"
+                  "        _auto = _auto_hook_url(request)\n"
+                  "        if _auto and not payload.callback_url:\n"
+                  "            payload.callback_url = _auto\n"
+                  "    except Exception:                            # noqa: BLE001\n"
+                  "        log.debug(\"auto hook url skipped\", exc_info=True)\n\n")
+        src3 = src3.replace(marker, inject + marker, 1)
+        ROUTER.write_text(src3, encoding="utf-8")
+        print("  ✔ روتر — آدرسِ وبهوک خودکار از درخواست")
+
+# ---------------------------------------------------------------- نامِ دیگر برای همان فیلد
+if SCHEMAS.exists():
+    src4 = SCHEMAS.read_text(encoding="utf-8")
+    if "MULTI-HOOK-V1" in src4:
+        print("  • schemas — از قبل درست است")
+    else:
+        old = "    webhook_endpoint: str | None = Field(default=None, max_length=120)"
+        if old in src4:
+            new = (old + "\n"
+                   "    # MULTI-HOOK-V1 — بعضی ربات‌ها همین آدرس را با نامِ webhook_url می‌فرستند.\n"
+                   "    webhook_url: str | None = Field(default=None, max_length=400)")
+            src4 = src4.replace(old, new, 1)
+
+            hook = "    @field_validator(\"callback_url\")"
+            if hook in src4:
+                alias = ("    @model_validator(mode=\"after\")\n"
+                         "    def _hook_url_alias(self):\n"
+                         "        # MULTI-HOOK-V1 — webhook_url همان callback_url است.\n"
+                         "        if not self.callback_url and self.webhook_url:\n"
+                         "            object.__setattr__(self, \"callback_url\", self.webhook_url)\n"
+                         "        return self\n\n")
+                src4 = src4.replace(hook, alias + hook, 1)
+            if "model_validator" in src4 and "model_validator" not in src4.split("class InvoiceCreate")[0]:
+                imp = "from pydantic import"
+                line = [l for l in src4.split("\n") if l.startswith(imp)]
+                if line:
+                    l0 = line[0]
+                    if "model_validator" not in l0:
+                        src4 = src4.replace(l0, l0.replace("import ", "import model_validator, ", 1), 1)
+            SCHEMAS.write_text(src4, encoding="utf-8")
+            print("  ✔ schemas — webhook_url هم پذیرفته می‌شود")
+        else:
+            print("  • فیلدِ webhook_endpoint در schemas پیدا نشد — رد شد")
 
 compile_all()
