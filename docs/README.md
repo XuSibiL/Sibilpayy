@@ -83,3 +83,5 @@
 - [۲۴ — بانک‌ها](24-banks.md)
 - [۲۵ — اپ اندروید](25-android-app.md)
 - [۲۶ — صفحه پرداخت، رسید و مینی‌اپ](26-public-pages.md)
+- [۲۷ — محدودیت نرخ و امضای اپ](27-rate-limit-and-app-signature.md)
+- [۲۸ — کد فروشندگی و پشتیبانی](28-reseller-and-support.md)
