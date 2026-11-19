@@ -25,7 +25,13 @@ router = Router(name="connections")
 
 MAX = conn_repo.MAX_ENDPOINTS
 
-WORDS = {"اتصالات", "🔌 اتصالات", "اتصالات و وبهوک‌ها", "وبهوک", "وبهوک‌ها", "هوک"}
+WORDS = {"اتصالات", "وبهوک", "وبهوک‌ها", "هوک"}
+
+
+def _is_connections(text: str) -> bool:
+    """«اتصالات» با هر ایموجی و هر فاصله‌ای: 📡 اتصالات، اتصالات و وبهوک‌ها، …"""
+    clean = (text or "").replace("\u200c", "").replace("\ufe0f", "")
+    return "اتصالا" in clean or "وبهوک" in clean
 
 _ICON = {"delivered": "✅", "failed": "✘", "pending": "⏳"}
 
@@ -60,11 +66,9 @@ async def _text(store_id: str) -> str:
 def _keyboard(store_id: str, destinations: list[dict]) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for i, item in enumerate(destinations, 1):
-        rows.append([kb.glass(f"🧪 آزمایشِ {fa_digits(i)}",
+        rows.append([kb.glass(f"آزمایشِ {fa_digits(i)}",
                              callback_data=f"cn:t:{i}:{store_id}",
                              style="success", emoji="🧪")])
-    rows.append([kb.glass("📡 تاریخچهٔ ارسال‌ها", callback_data=f"wh:show:{store_id}",
-                          style="primary", emoji="📡")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -74,7 +78,7 @@ async def _paint(event, store_id: str, toast: str | None = None, alert: bool = F
                     toast=toast, alert=alert)
 
 
-@router.message(F.text.in_(WORDS))
+@router.message(F.text.func(_is_connections))
 async def connections_word(message: Message) -> None:
     """کلمهٔ «اتصالات» هم پنل را باز می‌کند، نه فقط دکمه‌اش."""
     try:
@@ -110,6 +114,16 @@ async def connections_test(call: CallbackQuery) -> None:
     if not 1 <= index <= len(destinations):
         await call.answer("این مقصد دیگر نیست", show_alert=True)
         return
-    await call.answer("در حال ارسال…")
+    try:
+        await call.answer("در حال ارسال…")
+    except Exception:                                   # noqa: BLE001
+        pass
     ok, note = await conn_repo.send_test(destinations[index - 1]["url"], store_id)
-    await call.answer(("✅ " if ok else "✘ ") + note, show_alert=not ok)
+    line = ("✅ <b>آزمایشِ %s</b>: %s" if ok else "✘ <b>آزمایشِ %s</b>: %s") % (
+        fa_digits(index), html.escape(str(note)))
+    try:
+        await ui.render(call, await _text(store_id) + "\n\n" + line,
+                        _keyboard(store_id, destinations))
+    except Exception:                                   # noqa: BLE001
+        log.exception("نتیجهٔ آزمایش نشان داده نشد")
+        await call.message.answer(line)
