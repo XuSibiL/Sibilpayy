@@ -20,21 +20,41 @@ from app.models import WebhookDelivery
 MAX_ENDPOINTS = 3
 
 
+def _base_url(url: str) -> str:
+    """آدرسِ مقصد بدونِ query — یک دامنه، یک مقصد."""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    head = url.partition("?")[0].partition("#")[0]
+    return head or url
+
+
 async def auto_destinations(store_id: str, limit: int = MAX_ENDPOINTS) -> list[dict]:
-    """دامنه‌هایی که از همین فروشگاه فاکتور ساخته‌اند، به‌ترتیبِ تازگی."""
+    """دامنه‌هایی که از همین فروشگاه فاکتور ساخته‌اند، به‌ترتیبِ تازگی.
+
+    آدرس‌ها بدونِ query شمرده می‌شوند: `...return.php?order_id=A` و `...?order_id=B`
+    یک مقصد هستند، نه دو.
+    """
     async with SessionLocal() as s:
         try:
             rows = (await s.execute(text(
-                "select callback_url, count(*) as n, max(created_at) as last "
-                'from "invoices" where store_id = :s and coalesce(callback_url, \'\') <> \'\' '
-                "group by callback_url order by last desc limit :n"
-            ), {"s": store_id, "n": limit})).all()
+                'select callback_url, created_at from "invoices" '
+                "where store_id = :s and coalesce(callback_url, '') <> '' "
+                "order by created_at desc limit 300"
+            ), {"s": store_id})).all()
         except Exception:                               # noqa: BLE001
             return []
-    out = []
-    for url, count, last in rows:
-        out.append({"url": str(url), "count": int(count or 0), "last": str(last or "")})
-    return out
+    seen: dict[str, dict] = {}
+    order: list[str] = []
+    for url, created in rows:
+        base = _base_url(str(url or ""))
+        if not base:
+            continue
+        if base not in seen:
+            seen[base] = {"url": base, "count": 0, "last": str(created or "")}
+            order.append(base)
+        seen[base]["count"] += 1
+    return [seen[u] for u in order[:limit]]
 
 
 async def recent_deliveries(store_id: str, limit: int = 6) -> list[dict]:

@@ -39,7 +39,7 @@ async def _text(store_id: str) -> str:
     destinations = await conn_repo.auto_destinations(store_id)
     lines = ["🔌 <b>اتصالات</b>", ""]
     lines.append("خبرِ هر فاکتور خودکار به همان دامنه‌ای می‌رود که فاکتور را ساخته.")
-    lines.append("چیزی برای ثبتِ دستی نیست.")
+    lines.append("یک دامنه، یک مقصد؛ سقف سه دامنه.")
     lines.append("")
     if not destinations:
         lines.append("<b>هنوز از هیچ دامنه‌ای خبری نیست.</b>")
