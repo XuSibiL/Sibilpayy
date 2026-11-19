@@ -1,73 +1,60 @@
-<div dir="rtl" align="right">
+# ۰۳ — مرجع API
 
-# ۰۳ — مرجعِ API
-
-> **`SERVER`** = آدرسِ سرورِ پرداختِ شما.
-> آدرسِ **API** (`SERVER/api/v1`) با آدرسِ **درگاه** (`SERVER/g/<slug>`) فرق دارد —
-> [سندِ ۱۵](15-address-map.md).
-
----
+`SERVER` یعنی آدرس سرور پرداخت. آدرس API با `SERVER/api/v1` شروع می‌شود و آدرس درگاه با `SERVER/g/<slug>`؛ این دو یکی نیستند و در [سند ۱۵](15-address-map.md) توضیح داده شده‌اند.
 
 ## قاعده‌های کلی
 
-**احرازِ هویت:** در همهٔ مسیرهای زیر `Authorization` لازم است:
+احراز هویت در همه مسیرهای این سند با `Authorization` است:
 
 ```
 Authorization: Bearer sibil_pay_live_XXXXXXXX
 ```
 
-**واحدِ پول:** همهٔ مبالغ **ریال** هستند (۱ تومان = ۱۰ ریال).
+همه مبالغ به ریال هستند و ۱ تومان برابر ۱۰ ریال است.
 
-**پاسخِ همهٔ درخواست‌ها یک شکل دارد:**
+شکل پاسخ همه درخواست‌ها یکی است:
 
 ```json
 { "success": true,  "data": { }, "error": null }
 { "success": false, "data": null, "error": { "code": "INVALID_TOKEN", "message": "…" } }
 ```
 
-پس همیشه اول `success` را چک کن، بعد `data` یا `error` را.
+پس اول `success` را بررسی کن، بعد `data` یا `error` را.
 
-**مسیرِ پایه:** `/api/v1`
+مسیر پایه `/api/v1` است.
 
-**`order_id` = idempotency:** اگر `order_id` بفرستی و برای همان فروشگاه فاکتورِ
-باز/پرداخت‌شده‌ای با همان `order_id` وجود داشته باشد، فاکتورِ تکراری ساخته
-نمی‌شود؛ همان فاکتور با `200` و `"idempotent_replay": true` برمی‌گردد.
-جزئیات: [۱۰ — تلاشِ ناموفق و idempotency](10-retries-and-idempotency.md)
+`order_id` نقش idempotency را دارد: اگر `order_id` بفرستی و برای همان فروشگاه فاکتور باز یا پرداخت‌شده‌ای با همان `order_id` وجود داشته باشد، فاکتور تکراری ساخته نمی‌شود و همان فاکتور با `200` و `"idempotent_replay": true` برمی‌گردد. جزئیات در [۱۰ — تلاش ناموفق و idempotency](10-retries-and-idempotency.md) است.
 
-**بازیابیِ نتیجهٔ نامشخص:**
+برای بازیابی نتیجه نامشخص:
 
 ```http
 GET /api/v1/invoices/by-order/{order_id}
 ```
 
-`200` = فاکتور هست · `404` = مطمئنی ساخته نشده و می‌توانی دوباره تلاش کنی.
+`200` یعنی فاکتور هست و `404` یعنی مطمئنی ساخته نشده و می‌توانی دوباره تلاش کنی.
 
----
-
-## فهرستِ endpointها
+## فهرست اندپوینت‌ها
 
 | متد | مسیر | کار |
 |---|---|---|
-| `POST` | `/invoices` | ساختِ فاکتور |
-| `GET` | `/invoices` | فهرستِ فاکتورها |
+| `POST` | `/invoices` | ساخت فاکتور |
+| `GET` | `/invoices` | فهرست فاکتورها |
 | `GET` | `/invoices/{id}` | یک فاکتور با جزئیات |
-| `GET` | `/invoices/{id}/status` | فقط وضعیت (سبک، برای polling) |
-| `GET` | `/invoices/{id}/history` | تاریخچهٔ تغییرِ وضعیت |
+| `GET` | `/invoices/{id}/status` | فقط وضعیت، سبک برای polling |
+| `GET` | `/invoices/{id}/history` | تاریخچه تغییر وضعیت |
 | `POST` | `/invoices/{id}/cancel` | لغو |
-| `POST` | `/invoices/{id}/verify` | تأیید و گرفتنِ رسید |
-| `POST` | `/invoices/{id}/confirm-deposit` | تأییدِ دستیِ واریزیِ دیررسیده |
+| `POST` | `/invoices/{id}/verify` | تأیید و گرفتن رسید |
+| `POST` | `/invoices/{id}/confirm-deposit` | تأیید دستی واریزی دیررسیده |
 | `GET` | `/cards` · `POST /cards` · `PATCH /cards/{id}` | کارت‌ها |
-| `GET` | `/store` · `PATCH /store` | تنظیماتِ فروشگاه؛ **`webhook_url` همیشه در پاسخ هست (`null` = خالی)** |
-| `GET` | `/webhooks` · `/webhooks?invoice_id=…` | ارسال‌های وب‌هوک: `status`، `attempts`، `response_status`، `last_error`، `next_attempt_at` |
-| `POST` | `/webhook-test` | ارسالِ یک وب‌هوکِ نمونه |
-| `GET` | `/gateways` | مسیرهای پرداختِ فعال |
+| `GET` | `/store` · `PATCH /store` | تنظیمات فروشگاه؛ `webhook_url` همیشه در پاسخ هست و `null` یعنی خالی |
+| `GET` | `/webhooks` · `/webhooks?invoice_id=…` | ارسال‌های webhook با `status` و `attempts` و `response_status` و `last_error` و `next_attempt_at` |
+| `POST` | `/webhook-test` | ارسال یک webhook نمونه |
+| `GET` | `/gateways` | مسیرهای پرداخت فعال |
 | `GET` | `/devices` | گوشی‌های وصل‌شده |
-| `POST` | `/devices/pairing-code` | کدِ اتصالِ گوشیِ تازه |
-| `POST` | `/test/invoices/{id}/simulate-payment` | شبیه‌سازیِ واریز (فقط کلیدِ test) |
+| `POST` | `/devices/pairing-code` | کد اتصال گوشی تازه |
+| `POST` | `/test/invoices/{id}/simulate-payment` | شبیه‌سازی واریز، فقط با کلید test |
 
----
-
-## ساختِ فاکتور
+## ساخت فاکتور
 
 ```
 POST /api/v1/invoices
@@ -75,16 +62,16 @@ POST /api/v1/invoices
 
 | فیلد | نوع | الزامی | توضیح |
 |---|---|---|---|
-| `amount_rial` | int | ✅ | مبلغ، ریال، بیشتر از صفر |
-| `order_id` | string | — | شمارهٔ سفارشِ خودت (حداکثر ۱۲۰ کاراکتر) |
-| `description` | string | — | توضیحِ کوتاه برای مشتری |
-| `callback_url` | string | — | آدرسِ بازگشتِ مشتری (باید `http(s)://`) |
-| `expiry_minutes` | int | — | اعتبار، بین ۲ تا ۱۸۰ دقیقه |
-| `customer_name` | string | — | نامِ خریدار |
-| `customer_phone` | string | — | موبایلِ خریدار |
-| `metadata` | object | — | هر دادهٔ خودت؛ همان‌طور برمی‌گردد |
+| `amount_rial` | int | بله | مبلغ به ریال، بیشتر از صفر |
+| `order_id` | string | خیر | شماره سفارش خودت، حداکثر ۱۲۰ کاراکتر |
+| `description` | string | خیر | توضیح کوتاه برای مشتری |
+| `callback_url` | string | خیر | آدرس بازگشت مشتری، باید `http(s)://` داشته باشد |
+| `expiry_minutes` | int | خیر | اعتبار بین ۲ تا ۱۸۰ دقیقه |
+| `customer_name` | string | خیر | نام خریدار |
+| `customer_phone` | string | خیر | موبایل خریدار |
+| `metadata` | object | خیر | هر داده خودت، همان‌طور برمی‌گردد |
 
-**نمونه:**
+نمونه:
 
 ```bash
 curl -X POST https://SERVER/api/v1/invoices \
@@ -100,7 +87,7 @@ curl -X POST https://SERVER/api/v1/invoices \
   }'
 ```
 
-**پاسخ (۲۰۱):**
+پاسخ (۲۰۱):
 
 ```json
 {
@@ -128,21 +115,18 @@ curl -X POST https://SERVER/api/v1/invoices \
 }
 ```
 
-> 🔑 **`payable_rial` را به مشتری نشان بده، نه `amount_rial` را.**
-> اختلافِ چند ریالی، عمدی و یکتاست تا واریزی‌ها با هم قاطی نشوند.
+`payable_rial` را به مشتری نشان بده، نه `amount_rial` را. اختلاف چند ریالی عمدی و یکتاست تا واریزی‌ها با هم قاطی نشوند.
 
----
-
-## وضعیتِ فاکتور
+## وضعیت فاکتور
 
 ```
 GET /api/v1/invoices/{id}/status
 GET /api/v1/invoices/{id}
 ```
 
-`status` یکی از: `pending` · `paid` · `partially_paid` · `expired` · `cancelled`
+`status` یکی از `pending`، `paid`، `partially_paid`، `expired` یا `cancelled` است.
 
-نمونهٔ پاسخِ `/status`:
+نمونه پاسخ `/status`:
 
 ```json
 {
@@ -161,14 +145,12 @@ GET /api/v1/invoices/{id}
 }
 ```
 
-**فهرست:**
+فهرست:
 
 ```bash
 curl "https://SERVER/api/v1/invoices?status=paid&limit=50" \
   -H "Authorization: Bearer sibil_pay_live_XXXXXXXX"
 ```
-
----
 
 ## تأیید و رسید
 
@@ -176,7 +158,7 @@ curl "https://SERVER/api/v1/invoices?status=paid&limit=50" \
 POST /api/v1/invoices/{id}/verify
 ```
 
-اگر پرداخت تأیید شده باشد، رسیدِ قابلِ ارائه می‌دهد:
+اگر پرداخت تأیید شده باشد، رسید قابل ارائه می‌دهد:
 
 ```json
 {
@@ -192,9 +174,7 @@ POST /api/v1/invoices/{id}/verify
 }
 ```
 
-`receipt_url` یک صفحهٔ رسیدِ امضاشده است؛ می‌توانی لینکش را به مشتری بدهی (اثباتِ پرداخت).
-
----
+`receipt_url` یک صفحه رسید امضاشده است؛ می‌توانی لینکش را به مشتری بدهی تا اثبات پرداخت داشته باشد.
 
 ## لغو
 
@@ -202,22 +182,17 @@ POST /api/v1/invoices/{id}/verify
 POST /api/v1/invoices/{id}/cancel
 ```
 
-فقط فاکتورِ `pending` (یا `partially_paid`) لغو می‌شود. کارمزدی ندارد.
+فقط فاکتور `pending` یا `partially_paid` لغو می‌شود.
 
----
-
-## تأییدِ دستیِ واریزیِ دیررسیده
+## تأیید دستی واریزی دیررسیده
 
 ```
 POST /api/v1/invoices/{id}/confirm-deposit
 ```
 
-برای وقتی که پول رسیده ولی فاکتور منقضی شده بود، یا واریزی «نیازمندِ بررسی» است.
-(معمولاً از پنل/ربات هم انجام می‌شود؛ برای خودکارسازی در دسترس است.)
+برای وقتی است که پول رسیده ولی فاکتور منقضی شده بود، یا واریزی نیازمند بررسی است. معمولا از پنل یا ربات هم انجام می‌شود و این مسیر برای خودکارسازی است.
 
-**شاهد اجباری است:** بدنه باید یا `sms_id` (شناسهٔ پیامکِ واریزِ ذخیره‌شده) یا
-`amount_rial` را داشته باشد؛ بدونِ یکی از این دو، پاسخ `422 EVIDENCE_REQUIRED`
-است. این کار عمدی است: تأییدِ دستی یعنی «انسان پول را دیده»، نه یک «paid کن».
+شاهد اجباری است: بدنه باید یا `sms_id` یعنی شناسه پیامک واریز ذخیره‌شده را داشته باشد یا `amount_rial` را. بدون یکی از این دو پاسخ `422 EVIDENCE_REQUIRED` است. این کار عمدی است، چون تأیید دستی یعنی انسان پول را دیده، نه یک «paid کن».
 
 ```bash
 curl -X POST https://SERVER/api/v1/invoices/inv_XXXX/confirm-deposit \
@@ -226,39 +201,27 @@ curl -X POST https://SERVER/api/v1/invoices/inv_XXXX/confirm-deposit \
   -d '{"amount_rial": 500868, "note": "پیامکِ واریز را دیدم"}'
 ```
 
-**وضعیت‌هایی که پذیرفته می‌شوند:** `pending` · `partially_paid` · `under_review` ·
-`expired` · `cancelled`.
+وضعیت‌های پذیرفته‌شده: `pending`، `partially_paid`، `under_review`، `expired`، `cancelled`.
 
-یعنی حتی فاکتورِ **منقضی** و **لغو‌شده** هم با تأییدِ دستی به `paid` می‌رود — این
-راهِ رسمیِ باز‌کردنِ قفلِ «پول آمده ولی فاکتور مرده» است. بلافاصله پس از تأیید:
+یعنی فاکتور منقضی و لغو‌شده هم با تأیید دستی به `paid` می‌رود و این راه رسمی باز کردن قفل «پول آمده ولی فاکتور مرده» است. بلافاصله پس از تأیید:
 
-* وضعیتِ فاکتور `paid` می‌شود و `paid_amount_rial` پر می‌شود،
-* رویدادِ `invoice.paid` برای وب‌هوکِ فروشگاه صف می‌شود (سایت/اپ همان را بگیرد)،
-* کارمزد از کیف پول کسر و واقعه با `actor` ثبت می‌شود (قابلِ حسابرسی).
+- وضعیت فاکتور `paid` می‌شود و `paid_amount_rial` پر می‌شود،
+- رویداد `invoice.paid` برای webhook فروشگاه صف می‌شود،
+- کارمزد از کیف پول کسر می‌شود و واقعه با `actor` ثبت می‌شود، پس قابل حسابرسی است.
 
-> ⚠️ تطبیقِ **خودکار** هرگز سراغِ فاکتورِ منقضی یا لغو‌شده نمی‌رود؛ فقط همین مسیرِ
-> دستی و با شاهد. پس هیچ واریزیِ اشتباهی خودش فاکتور را paid نمی‌کند.
+تطبیق خودکار هرگز سراغ فاکتور منقضی یا لغو‌شده نمی‌رود؛ فقط همین مسیر دستی و با شاهد. پس هیچ واریزی اشتباهی خودش فاکتور را paid نمی‌کند.
 
----
+## تفاوت `payment_url` و `gateway_url`
 
-## نکتهٔ `payment_url` و `gateway_url`
-
-دو چیزِ متفاوت، هر دو در پاسخِ فاکتور:
+هر دو در پاسخ فاکتور هستند ولی دو چیز متفاوت‌اند:
 
 | فیلد | معنی | برای چه کسی |
 |---|---|---|
-| `payment_url` | لینکِ **همین فاکتور** (`/pay/<gateway>/<id>`) | مشتری؛ ریدایرکت کن و تمام |
-| `short_payment_url` | همان لینک، بدونِ نامِ درگاه (`/pay/<id>`) | لینک‌های قدیمی/کوتاه |
-| `gateway_url` | **آدرسِ درگاهِ فروشگاه** (`/g/<slug>`) | در فیلدِ «آدرس درگاه» پنل‌های دیگر؛ نه لینکِ یک خریدِ خاص |
+| `payment_url` | لینک همین فاکتور، `/pay/<gateway>/<id>` | مشتری؛ ریدایرکت کن و تمام |
+| `short_payment_url` | همان لینک بدون نام درگاه، `/pay/<id>` | لینک‌های قدیمی یا کوتاه |
+| `gateway_url` | آدرس درگاه فروشگاه، `/g/<slug>` | فیلد آدرس درگاه در پنل‌های دیگر، نه لینک یک خرید خاص |
 
-
-`payment_url` و `short_payment_url` را **همان‌طور که می‌آید مصرف کن** و خودت از
-`SERVER` نساز. آدرسِ API و آدرسِ صفحهٔ پرداخت روی **یک پورت** هستند
-(قانونِ PORT-ONE)؛ اگر پورتِ صریحی در `BASE_URL` باشد، همان پورت باید مسیرِ
-`/api/v1/…` را هم مستقیم سرو کند. آزمونِ سریع و جدولِ خطاها:
-[۱۳ — یک پورت برای API و درگاه](13-one-port.md).
-
----
+`payment_url` و `short_payment_url` را همان‌طور که می‌آید مصرف کن و خودت از `SERVER` نساز. آدرس API و آدرس صفحه پرداخت روی یک پورت هستند؛ اگر پورت صریحی در `BASE_URL` باشد همان پورت باید مسیر `/api/v1/…` را هم سرو کند. آزمون سریع و جدول خطاها در [۱۳ — یک پورت برای API و درگاه](13-one-port.md) است.
 
 ## کارت‌ها
 
@@ -279,9 +242,7 @@ curl -X PATCH https://SERVER/api/v1/cards/card_XXXX \
   -d '{"is_active": false}'
 ```
 
----
-
-## تنظیماتِ فروشگاه
+## تنظیمات فروشگاه
 
 ```bash
 # خواندن
@@ -294,11 +255,9 @@ curl -X PATCH https://SERVER/api/v1/store \
   -d '{"webhook_url":"https://mysite.com/sibilpay/callback"}'
 ```
 
-اگر آدرس با `http://` یا `https://` شروع نشود → خطای `INVALID_WEBHOOK_URL` (کد ۴۲۲).
+اگر آدرس با `http://` یا `https://` شروع نشود خطای `INVALID_WEBHOOK_URL` با کد ۴۲۲ می‌گیری.
 
----
-
-## گوشی‌ها (دستگاه‌ها)
+## گوشی‌ها
 
 ```bash
 # فهرستِ گوشی‌های وصل‌شده
@@ -309,51 +268,37 @@ curl -X POST https://SERVER/api/v1/devices/pairing-code \
   -H "Authorization: Bearer sibil_pay_live_XXXXXXXX"
 ```
 
-کد را در اپِ Forwarder وارد می‌کنی. **از لحظهٔ اتصال** پیامک‌های تازه خوانده می‌شوند؛
-پیامک‌های قدیمیِ گوشی هیچ‌وقت واریزی حساب نمی‌شوند.
+کد را در اپ Forwarder وارد می‌کنی. از لحظه اتصال پیامک‌های تازه خوانده می‌شوند و پیامک‌های قدیمی گوشی هیچ‌وقت واریزی حساب نمی‌شوند.
 
----
-
-## شبیه‌سازیِ واریز (فقط test)
+## شبیه‌سازی واریز، فقط test
 
 ```
 POST /api/v1/test/invoices/{id}/simulate-payment
 ```
 
-موتورِ تطبیقِ **واقعی** با یک پیامکِ ساختگی اجرا می‌شود؛ برای تستِ کاملِ وب‌هوک و
-منطقِ سفارش، بدونِ یک ریال پول.
+موتور تطبیق واقعی با یک پیامک ساختگی اجرا می‌شود، برای تست کامل webhook و منطق سفارش بدون یک ریال پول.
 
-بدنه (همه اختیاری):
+بدنه که همه فیلدهایش اختیاری است:
 
 ```json
 { "amount_rial": 2500137, "bank": "mellat", "payer_last4": "1234" }
 ```
 
-> روی سرورِ production فقط با **کلیدِ تست** (`sibil_pay_test_…`) کار می‌کند؛ وگرنه
-> `INVOICE_NOT_PAYABLE` می‌گیری. فاکتور هم باید `pending` یا `partially_paid` باشد.
+روی سرور production فقط با کلید تست (`sibil_pay_test_…`) کار می‌کند، وگرنه `INVOICE_NOT_PAYABLE` می‌گیری. فاکتور هم باید `pending` یا `partially_paid` باشد.
 
----
-
-## endpointهای تکمیلی
+## اندپوینت‌های تکمیلی
 
 | متد | مسیر | کار |
 |---|---|---|
-| `DELETE` | `/devices/{id}` | جدا کردنِ گوشیِ متصل |
-| `GET` | `/wallet` | موجودیِ کیفِ کارمزد |
-| `GET` | `/stats/summary` | خلاصهٔ آماری فروشگاه |
-| `GET` | `/stats/export.xlsx` · `.csv` · `.pdf` | خروجیِ گزارش |
-| `GET` | `/matches` | واریزی‌های نیازمندِ بررسی |
-| `POST` | `/matches/{match_id}/resolve` | تعیینِ تکلیفِ یک تطبیق |
+| `DELETE` | `/devices/{id}` | جدا کردن گوشی متصل |
+| `GET` | `/wallet` | موجودی کیف کارمزد |
+| `GET` | `/stats/summary` | خلاصه آماری فروشگاه |
+| `GET` | `/stats/export.xlsx` · `.csv` · `.pdf` | خروجی گزارش |
+| `GET` | `/matches` | واریزی‌های نیازمند بررسی |
+| `POST` | `/matches/{match_id}/resolve` | تعیین تکلیف یک تطبیق |
 
----
+## مستندات تعاملی
 
-## مستنداتِ تعاملی
+اگر روی سرورت فعال باشد، `SERVER/docs` همه اندپوینت‌ها را با Try it out نشان می‌دهد. مرجع نهایی همین سند است.
 
-اگر روی سرورت فعال باشد، `SERVER/docs` همهٔ endpointها را با امکانِ «Try it out» نشان
-می‌دهد. اما مرجعِ نهایی همین سند است.
-
----
-
-بعدی: [وب‌هوک →](04-webhooks.md)
-
-</div>
+بعدی: [webhook](04-webhooks.md)
