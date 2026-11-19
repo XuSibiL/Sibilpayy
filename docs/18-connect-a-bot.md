@@ -89,7 +89,7 @@ Content-Type: application/json
 ```
 
 - `webhook_endpoint` اختیاری است و بقیه بدنه همان قبلی است.
-- مقصد نامعتبر یعنی `400 UNKNOWN_ENDPOINT` و فاکتور ساخته نمی‌شود.
+- مقصدی که متعلق به این کلید نباشد فاکتور را رد نمی‌کند. نادیده گرفته می‌شود و فاکتور با مقصد پیش‌فرض همین کلید ساخته می‌شود؛ پاسخ همان `201` است.
 - هنگام تأیید پرداخت فقط همان یک آدرس فراخوانی می‌شود، با secret همان مقصد.
 - اگر کلید عوض شود یا مقصد پاک شود، فاکتورهای قبلی همان مقصدی که ثبت کرده‌اند را نگه می‌دارند؛ اگر آن مقصد دیگر وجود نداشته باشد به اولین مقصد فروشگاه برمی‌گردند.
 
@@ -194,7 +194,7 @@ GET /api/v1/hooks/self/deliveries?limit=10
 
 | چه کسی | کارمزد | اگر کیف کافی نباشد |
 |---|---|---|
-| فروشگاه‌های کاربران | نرخ پلتفرم، مثلا ۲۰۰۰ تومان، بابت هر فاکتور موفق | فاکتور ساخته نمی‌شود (`402 WALLET_INSUFFICIENT`) و همان لحظه به خود فروشنده در ربات پیام می‌رود |
+| فروشگاه‌های کاربران | نرخ پلتفرم، مثلا ۲۰۰۰ تومان، بابت هر فاکتور، همان لحظه ساخت | فاکتور ساخته نمی‌شود (`402 WALLET_INSUFFICIENT`) و همان لحظه به خود فروشنده در ربات پیام می‌رود |
 | فروشگاه‌های مالک سرویس و فروشگاه پلتفرم | صفر | هیچ‌وقت بلاک نمی‌شوند |
 
 قاعده‌ها:
@@ -213,3 +213,33 @@ GET /api/v1/hooks/self/deliveries?limit=10
 3. `POST /api/v1/hooks/self/test` بزن و تحویل را در `/deliveries` ببین.
 4. در ساخت فاکتور اگر لازم شد `webhook_endpoint` را بده، وگرنه مقصد همین کلید خودکار انتخاب می‌شود.
 5. امضا را با `t.<body>` و secret همان مقصد بررسی کن و بیش از ۳۰۰ ثانیه را رد کن.
+
+## ۱۰) الگوی امن در کد ربات
+
+سه خط زیر جلوی بیشتر خطاهای گزارش‌شده را می‌گیرد: `order_id` ثابت برای هر سفارش، تلاش دوباره روی `503` و `429`، و نفرستادن `webhook_endpoint` دستی.
+
+```python
+import asyncio, httpx
+
+async def create_invoice(base, key, order_id, amount_rial):
+    payload = {"amount_rial": amount_rial, "order_id": order_id}
+    for attempt in range(5):
+        async with httpx.AsyncClient(timeout=20) as c:
+            r = await c.post(f"{base}/api/v1/invoices", json=payload,
+                             headers={"Authorization": f"Bearer {key}"})
+        if r.status_code in (200, 201):
+            return r.json()["data"]
+        if r.status_code in (429, 503) or r.status_code >= 500:
+            await asyncio.sleep(min(3, 0.3 * 2 ** attempt))
+            continue
+        raise RuntimeError(r.json()["error"])
+    got = await c.get(f"{base}/api/v1/invoices/by-order/{order_id}",
+                      headers={"Authorization": f"Bearer {key}"})
+    if got.status_code == 200:
+        return got.json()["data"]
+    raise RuntimeError("سرویس پرداخت جواب نداد")
+```
+
+- `order_id` تکراری فاکتور تکراری نمی‌سازد، پس تلاش دوباره بی‌خطر است.
+- `200` با `idempotent_replay: true` یعنی این سفارش از قبل فاکتور دارد و همان برگشته است.
+- `503 DB_BUSY` و `429` را با تأخیر کوتاه دوباره بفرست، نه با خطا به کاربر.
