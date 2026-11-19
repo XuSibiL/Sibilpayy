@@ -451,4 +451,40 @@ if SCHEMAS.exists():
         else:
             print("  • فیلدِ webhook_endpoint در schemas پیدا نشد — رد شد")
 
+# ---------------------------------------------------------------- تحویلِ یک‌باره
+ONE_SHOT = '''    # MULTI-HOOK-V1 — هر ردیف یک بار تحویل داده می‌شود، حتی اگر دو حلقهٔ
+    # پس‌زمینه هم‌زمان بیدار شوند (نوبت‌دهندهٔ سبک + حلقهٔ اصلی).
+    _claimed = []
+    for _d in deliveries:
+        try:
+            _res = await session.execute(
+                __import__("sqlalchemy").text(
+                    'update "webhook_deliveries" set next_attempt_at = :t '
+                    "where id = :i and next_attempt_at <= :n"),
+                {"t": now + timedelta(seconds=45), "i": _d.id, "n": now},
+            )
+            if _res.rowcount:
+                _claimed.append(_d)
+        except Exception:                                   # noqa: BLE001
+            _claimed.append(_d)
+    await session.commit()
+    deliveries = _claimed
+
+'''
+src = HOOKS.read_text(encoding="utf-8")
+if "MULTI-HOOK-V1 one-shot" not in src:
+    body_line = src.find("        body = json.dumps(delivery.payload")
+    if body_line == -1:
+        print("  • حلقهٔ ارسال پیدا نشد — تحویلِ یک‌باره اضافه نشد")
+    else:
+        loop_at = src.rfind("    for delivery in deliveries:", 0, body_line)
+        if loop_at == -1:
+            print("  • حلقهٔ deliver_due پیدا نشد — رد شد")
+        else:
+            src = src[:loop_at] + ONE_SHOT + "    for delivery in deliveries:  # MULTI-HOOK-V1 one-shot\n" + src[loop_at + len("    for delivery in deliveries:"):]
+            HOOKS.write_text(src, encoding="utf-8")
+            print("  ✔ تحویلِ یک‌باره (بدونِ ارسالِ تکراری)")
+else:
+    print("  • تحویلِ یک‌باره از قبل هست")
+
 compile_all()
