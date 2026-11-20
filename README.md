@@ -45,6 +45,7 @@
 | ۱۴ | [webhook و تأیید دستی](docs/14-webhooks-and-manual-confirm.md) | پرداخت شد ولی خبری نیامد |
 | ۱۵ | [پرداخت رمزارزی](docs/19-crypto-payments.md) | تتر BEP20، ترون و تون‌کوین |
 | — | [هر باتی چطور خبر «پرداخت شد» را بگیرد](docs/29-receive-a-webhook.md) | هر ربات و هر سایتی که تازه وصل می‌شود |
+| — | [آدرسِ تأییدِ هر فاکتور: webhook_url](docs/30-invoice-webhook-url.md) | هر بات/سایت/اپی که می‌خواهد تأییدیهٔ خودش را بگیرد |
 | — | [مرجع کامل API](docs/20-api-reference.md) | فهرست همه مسیرها، خطاها و نمونه curl |
 | — | [ساخت فاکتور، کارمزد و webhook](docs/21-invoice-fee-webhook.md) | قواعد صدور فاکتور و سه مسیر امضا |
 | — | [اتصال پروژه‌های بیرونی](docs/22-php-integration.md) | PHP و وردپرس، قدم به قدم |
