@@ -196,7 +196,7 @@ app.post('/sibilpay/webhook', express.raw({ type: '*/*' }), (req, res) => {
     return res.status(400).send('bad signature');
 
   const event = JSON.parse(req.body.toString('utf8'));
-  if (event.event === 'invoice.paid') markPaid(event.data.order_id);  // یدمپوتنت
+  if (event.event === 'invoice.paid') markPaid(event.data.order_id);  // ایدمپوتنت
   res.json({ ok: true });
 });
 ```
@@ -241,7 +241,7 @@ def webhook():
 
     event = request.get_json(force=True)
     if event["event"] == "invoice.paid":
-        deliver(event["data"]["order_id"])    # یدمپوتنت
+        deliver(event["data"]["order_id"])    # ایدمپوتنت
     return {"ok": True}
 ```
 

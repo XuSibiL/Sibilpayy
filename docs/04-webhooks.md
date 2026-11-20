@@ -14,7 +14,12 @@
 
 ## فعال کردن
 
-یک آدرس ثبت می‌کنی که باید با `http://` یا `https://` شروع شود، عملا https چون امضا در مسیر رمزنگاری‌نشده محافظت نمی‌شود:
+آدرسِ ثبت‌شده باید با `http://` یا `https://` شروع شود و در محیطِ واقعی همیشه `https` باشد. این دو لایهٔ امنیتی نقشِ جداگانه دارند و جای یکدیگر را نمی‌گیرند:
+
+- **HTTPS** کانالِ ارتباط را رمزنگاری می‌کند: نه بدنهٔ پیام و نه کلیدِ امضا در مسیرِ شبکه قابلِ خواندن نیست و پیام در میانهٔ راه دست‌کاری نمی‌شود.
+- **امضای HMAC** اصالت و یکپارچگیِ خودِ پیام را ثابت می‌کند: گیرنده با کلیدِ مشترک بررسی می‌کند که بدنه دقیقاً همان چیزی است که سیبیل‌پی فرستاده و از یک منبعِ دیگر نیامده است. این بررسی حتی اگر پیام از پروکسی یا صفِ داخلی عبور کند معتبر می‌ماند.
+
+پس `https` الزامی است چون کلید و بدنه نباید شنود شوند، و امضا الزامی است چون `https` تنها بودنِ کانال را تضمین می‌کند، نه صحتِ فرستنده و محتوا.
 
 ```bash
 curl -X PATCH https://SERVER/api/v1/store \
@@ -104,7 +109,7 @@ X-SIBILPAY-Signature: t=<timestamp>,v1=<hex>
 import hashlib, hmac, time
 from fastapi import FastAPI, Request, HTTPException
 
-SECRET = "کلیدِ-امضای-وب‌هوک"
+SECRET = "کلیدِ-امضای-وبوک"
 app = FastAPI()
 
 def verify(raw: bytes, header: str, tolerance: int = 300) -> bool:
@@ -157,7 +162,7 @@ app.post("/sibilpay/callback",
 
     const event = JSON.parse(req.body.toString("utf8"));
     if (event.event === "invoice.paid") {
-      // markPaid(event.data.order_id)  ← یدمپوتنت بنویس
+      // markPaid(event.data.order_id)  ← ایدمپوتنت بنویس
     }
     res.json({ ok: true });
   });
@@ -331,10 +336,10 @@ $current = $me['data']['webhook_url'] ?? null;          // null = خالی
 if ($current === null) {
     api('PATCH', "$base/api/v1/store", $token, ['webhook_url' => $hook]);
 } elseif ($current !== $hook) {
-    error_log("وبهوک از قبل ثبت شده: $current — بازنویسی نکردم");
+    error_log("وبوک از قبل ثبت شده: $current — بازنویسی نکردم");
 }
 
-// ۳) گیرندهٔ وبهوک: امضا
+// ۳) گیرندهٔ وبوک: امضا
 $secret = getenv('SIBILPAY_WEBHOOK_SECRET');
 $raw    = file_get_contents('php://input');
 $sig    = $_SERVER['HTTP_X_SIBILPAY_SIGNATURE'] ?? '';
@@ -391,7 +396,7 @@ const TOKEN = process.env.SIBILPAY_TOKEN;
 const HOOK = 'https://mysite.com/sibilpay/callback';
 const H = { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
 
-async function ensureWebhook() {
+async function ensurewebhook() {
   const me = await (await fetch(`${BASE}/api/v1/store`, { headers: H })).json();
   const current = me.data.webhook_url;               // null = خالی
   if (current === null) {
@@ -494,18 +499,18 @@ app.MapPost("/sibilpay/callback", async (HttpRequest req) => {
 ```go
 type storeResp struct {
     Data struct {
-        WebhookURL *string `json:"webhook_url"`
+        webhookURL *string `json:"webhook_url"`
         Configured bool    `json:"webhook_configured"`
     } `json:"data"`
 }
 
-func ensureWebhook() error {
+func ensurewebhook() error {
     req, _ := http.NewRequest("GET", base+"/api/v1/store", nil)
     req.Header.Set("Authorization", "Bearer "+token)
     var sr storeResp
     // … اجرای درخواست و decode …
-    if sr.Data.WebhookURL != nil {
-        if *sr.Data.WebhookURL != hook { log.Printf("ثبتِ قبلی حفظ شد: %s", *sr.Data.WebhookURL) }
+    if sr.Data.webhookURL != nil {
+        if *sr.Data.webhookURL != hook { log.Printf("ثبتِ قبلی حفظ شد: %s", *sr.Data.webhookURL) }
         return nil
     }
     body := strings.NewReader(`{"webhook_url":"` + hook + `"}`)

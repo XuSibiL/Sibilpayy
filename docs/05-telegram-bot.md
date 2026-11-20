@@ -11,7 +11,7 @@
                           ↓
                     لینکِ پرداخت → کاربر واریز می‌کند
                           ↓
-      (۲) وب‌هوکِ invoice.paid  →  سرورِ تو  →  (۳) پیام به کاربر
+      (۲) وبوکِ invoice.paid  →  سرورِ تو  →  (۳) پیام به کاربر
 ```
 
 پیام به کاربر را بات خودت می‌فرستد؛ سیبیل‌پی فقط خبر معتبر می‌دهد.
@@ -65,7 +65,7 @@ import hashlib, hmac, time, requests
 
 app = Flask(__name__)
 BOT_TOKEN     = "123456:ABC…"
-WEBHOOK_SECRET = "کلیدِ-امضای-وب‌هوکِ-فروشگاه"
+WEBHOOK_SECRET = "کلیدِ-امضای-وبوکِ-فروشگاه"
 
 def tg_send(chat_id: int, text: str):
     requests.post(
@@ -97,7 +97,7 @@ def callback():
     data = event["data"]
     order_id = data["order_id"]
 
-    # ۳) یدمپوتنت: اگر این سفارش قبلاً paid شده، دوباره پیام نده
+    # ۳) ایدمپوتنت: اگر این سفارش قبلاً paid شده، دوباره پیام نده
     if already_paid(order_id):
         return {"ok": True}
     mark_paid(order_id)

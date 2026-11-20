@@ -101,7 +101,7 @@ $raw    = file_get_contents('php://input');            // بدنهٔ خام، ن
 $sig    = $_SERVER['HTTP_X_SIBILPAY_SIGNATURE'] ?? '';
 $secret = 'whsec_...';                                 // از PATCH /api/v1/store
 
-if (!Sibilpay::verifyWebhook($raw, $sig, $secret)) {
+if (!Sibilpay::verifywebhook($raw, $sig, $secret)) {
     http_response_code(401);
     exit('bad signature');
 }

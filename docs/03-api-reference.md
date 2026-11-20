@@ -115,7 +115,7 @@ curl -X POST https://SERVER/api/v1/invoices \
 }
 ```
 
-`payable_rial` را به مشتری نشان بده، نه `amount_rial` را. اختلاف چند ریالی عمدی و یکتاست تا واریزی‌ها با هم قاطی نشوند.
+`payable_rial` را به مشتری نشان بده، نه `amount_rial` را. اختلافِ چند ریالی عمدی و یکتاست تا واریزی‌ها با یکدیگر اشتباه نشوند.
 
 ## وضعیت فاکتور
 
@@ -248,7 +248,7 @@ curl -X PATCH https://SERVER/api/v1/cards/card_XXXX \
 # خواندن
 curl https://SERVER/api/v1/store -H "Authorization: Bearer sibil_pay_live_XXXXXXXX"
 
-# ثبتِ آدرسِ وب‌هوک (مهم‌ترین تنظیم برای اتصال)
+# ثبتِ آدرسِ وبوک (مهم‌ترین تنظیم برای اتصال)
 curl -X PATCH https://SERVER/api/v1/store \
   -H "Authorization: Bearer sibil_pay_live_XXXXXXXX" \
   -H "Content-Type: application/json" \

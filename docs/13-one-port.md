@@ -134,7 +134,7 @@ https://HOST:PORT/api/v1/…        → 302  (پروکسی → ۴۴۳)
 
 ## بیشتر بخوان
 
-- [۱۲ — چند فاکتور هم‌زمان و دام صف](12-concurrent-invoices.md)
+- [۱۲ — چند فاکتور هم‌زمان و محدودیتِ صف](12-concurrent-invoices.md)
 - [۱۰ — تلاش ناموفق، نتیجه نامشخص و idempotency](10-retries-and-idempotency.md)
 - [۰۳ — مرجع API](03-api-reference.md)
 

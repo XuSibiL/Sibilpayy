@@ -170,7 +170,7 @@ GET  /api/v1/hooks/self/deliveries
 ```
 🔌 اتصالات — MR SIBIL
 
-🌐 وبهوکِ فروشگاه: ۲ از ۳ وصل
+🌐 وبوکِ فروشگاه: ۲ از ۳ وصل
   ۱) مقصد اصلی — panel.example.com ✅
   ۲) بکاپ — backup.example.com ✅
   ۳) —

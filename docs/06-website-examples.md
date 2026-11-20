@@ -14,7 +14,7 @@
 <?php
 const SIBIL_SERVER = 'https://SERVER';
 const SIBIL_KEY    = 'sibil_pay_live_XXXXXXXX';
-const SIBIL_SECRET = 'کلیدِ-امضای-وب‌هوک';
+const SIBIL_SECRET = 'کلیدِ-امضای-وبوک';
 
 function sibil_request(string $method, string $path, ?array $body = null): array {
     $ch = curl_init(SIBIL_SERVER . $path);
@@ -85,7 +85,7 @@ if (abs(time() - $ts) > 300 ||
 $event = json_decode($raw, true);
 if (($event['event'] ?? '') === 'invoice.paid') {
     $orderId = $event['data']['order_id'];
-    if (!is_paid($orderId)) {          // یدمپوتنت
+    if (!is_paid($orderId)) {          // ایدمپوتنت
         mark_paid($orderId);
         send_receipt_email($orderId);  // فقط یک بار
     }
@@ -232,7 +232,7 @@ def sibilpay_callback(request):
     event = json.loads(raw)
     if event.get("event") == "invoice.paid":
         order_id = event["data"]["order_id"]
-        Order.objects.filter(pk=order_id, paid=False).update(paid=True)  # یدمپوتنت
+        Order.objects.filter(pk=order_id, paid=False).update(paid=True)  # ایدمپوتنت
     return JsonResponse({"ok": True})
 ```
 
